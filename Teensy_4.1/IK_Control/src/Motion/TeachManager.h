@@ -1,7 +1,7 @@
 #ifndef TEACH_MANAGER_H
 #define TEACH_MANAGER_H
 
-#include "Motion/MotionPlanner.h"
+#include "MotionPlanner.h"
 
 struct TeachPoint {
     Joints joints;

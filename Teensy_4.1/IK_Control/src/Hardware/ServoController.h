@@ -2,7 +2,7 @@
 #define SERVO_CONTROLLER_H
 
 #include <Servo.h>
-#include "Config.h"
+#include "../Config.h"
 
 class ServoController {
 public:

@@ -57,7 +57,7 @@ void SequencePlayer::runSequence(String name) {
 
 void SequencePlayer::update() {
     if (!_isPlaying) return;
-    if (_planner.isMoving()) return; // Wait for current move to finish
+    if (_planner.isMoving()) return;
 
     while (_currentFile.available()) {
         String line = _currentFile.readStringUntil('\n');
@@ -81,7 +81,7 @@ void SequencePlayer::update() {
         dur = line.substring(i5+1).toInt();
 
         _planner.addWaypoint({{val[0], val[1], val[2], val[3], val[4]}, dur});
-        return; // Process one waypoint at a time to allow planner to start
+        return;
     }
     _currentFile.close();
     _isPlaying = false;

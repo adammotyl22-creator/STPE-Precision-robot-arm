@@ -3,7 +3,7 @@
 
 #include <AccelStepper.h>
 #include <TMCStepper.h>
-#include "Config.h"
+#include "../Config.h"
 
 class MotorController {
 public:

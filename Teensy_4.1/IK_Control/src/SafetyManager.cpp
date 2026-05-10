@@ -9,13 +9,15 @@ void SafetyManager::update() {
 }
 
 void SafetyManager::_checkStallGuard() {
-    // StallGuard threshold tuning is hardware dependent.
-    // Typically, SG_RESULT decreases as load increases.
-    // If SG_RESULT reaches 0, a stall is likely.
-    if (_m1.getStallResult() == 0 || _m2.getStallResult() == 0 || _m3.getStallResult() == 0) {
-        // Trigger ESTOP if any motor stalls
-        triggerEstop();
-        Serial.println("!!! STALL DETECTED - ESTOP TRIGGERED !!!");
+    // StallGuard monitoring. SG_RESULT is 0 at stop/low speed, so we check movement.
+    bool moving = _m1.isRunning() || _m2.isRunning() || _m3.isRunning();
+    if (moving) {
+        if ((_m1.isRunning() && _m1.getStallResult() == 0) ||
+            (_m2.isRunning() && _m2.getStallResult() == 0) ||
+            (_m3.isRunning() && _m3.getStallResult() == 0)) {
+            triggerEstop();
+            Serial.println("!!! STALL DETECTED - ESTOP TRIGGERED !!!");
+        }
     }
 }
 

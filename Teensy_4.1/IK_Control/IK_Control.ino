@@ -2,18 +2,18 @@
 #include <Wire.h>
 #include <USBHost_t36.h>
 #include <Watchdog_t4.h>
-#include "../include/Config.h"
-#include "../src/Hardware/MotorController.h"
-#include "../src/Hardware/ServoController.h"
-#include "../src/Hardware/Encoder.h"
-#include "../src/Motion/MotionPlanner.h"
-#include "../src/Motion/ClosedLoopController.h"
-#include "../src/Motion/SequencePlayer.h"
-#include "../src/Motion/TeachManager.h"
-#include "../src/SafetyManager.h"
-#include "../src/HomingManager.h"
-#include "../src/Communication/CommandProcessor.h"
-#include "../src/ConfigurationManager.h"
+#include "src/Config.h"
+#include "src/Hardware/MotorController.h"
+#include "src/Hardware/ServoController.h"
+#include "src/Hardware/Encoder.h"
+#include "src/Motion/MotionPlanner.h"
+#include "src/Motion/ClosedLoopController.h"
+#include "src/Motion/SequencePlayer.h"
+#include "src/Motion/TeachManager.h"
+#include "src/SafetyManager.h"
+#include "src/HomingManager.h"
+#include "src/Communication/CommandProcessor.h"
+#include "src/ConfigurationManager.h"
 
 // Configuration
 RobotConfig config;
@@ -48,7 +48,7 @@ SafetyManager safety(axis1, axis2, axis3);
 SequencePlayer seqPlayer(planner);
 TeachManager teachMgr(planner);
 HomingManager homingMgr(axis1, axis2, axis3, enc1, enc2, enc3, planner, config);
-CommandProcessor cmdProcessor(planner, safety, seqPlayer, teachMgr, homingMgr);
+CommandProcessor cmdProcessor(planner, safety, seqPlayer, teachMgr, homingMgr, servo4, servo5, gripper, config);
 
 // Closed Loop Controllers
 PIDGains gains1 = {0.2, 0.0, 0.0, 0.1, 0.0};
@@ -108,7 +108,7 @@ void setup() {
     wdtCfg.timeout = 8;
     watchdog.begin(wdtCfg);
     
-    Serial.println("Robot Arm Modular Control v4.5 Ready");
+    Serial.println("Robot Arm Modular Control v4.7 Ready");
     lastUpdate = micros();
 }
 
@@ -142,9 +142,15 @@ void loop() {
             float stepsPerDeg1 = (STEPS_PER_MOTOR_REV * config.gear1) / 360.0f;
             float stepsPerDegGeared = (STEPS_PER_MOTOR_REV * config.gear2) / 360.0f;
 
-            axis1.setSpeed(vel.j1 * stepsPerDeg1);
-            axis2.setSpeed(vel.j2 * stepsPerDegGeared);
-            axis3.setSpeed(vel.j3 * stepsPerDegGeared * -1.0f);
+            // Apply real-time speed + PID adjustment
+            // The adjustment is position error. We convert it to a small velocity bias.
+            float cl_bias1 = adj1 * stepsPerDeg1 * 10.0f; // 10Hz correction gain
+            float cl_bias2 = adj2 * stepsPerDegGeared * 10.0f;
+            float cl_bias3 = adj3 * stepsPerDegGeared * 10.0f;
+
+            axis1.setSpeed(vel.j1 * stepsPerDeg1 + cl_bias1);
+            axis2.setSpeed(vel.j2 * stepsPerDegGeared + cl_bias2);
+            axis3.setSpeed((vel.j3 * stepsPerDegGeared + cl_bias3) * -1.0f);
 
             axis1.runSpeed();
             axis2.runSpeed();
@@ -153,12 +159,10 @@ void loop() {
             axisX.run();
             axisY.run();
 
-            // Sync internal position for AccelStepper AFTER move
-            if (!planner.isMoving()) {
-                axis1.setCurrentPosition((target.j1 + adj1) * stepsPerDeg1);
-                axis2.setCurrentPosition((target.j2 + adj2) * stepsPerDegGeared);
-                axis3.setCurrentPosition((target.j3 + adj3) * stepsPerDegGeared * -1.0f);
-            }
+            // Keep internal position in sync with actual commanded + correction
+            axis1.setCurrentPosition((target.j1 + adj1) * stepsPerDeg1);
+            axis2.setCurrentPosition((target.j2 + adj2) * stepsPerDegGeared);
+            axis3.setCurrentPosition((target.j3 + adj3) * stepsPerDegGeared * -1.0f);
 
             servo4.write(target.j4);
             servo5.write(target.j5);
@@ -168,7 +172,7 @@ void loop() {
     cmdProcessor.processSerial(Serial);
     cmdProcessor.processSerial(Serial1);
     if (userial) cmdProcessor.processSerial(userial);
-    
+
     static uint32_t lastTelem = 0;
     if (millis() - lastTelem > 100) {
         cmdProcessor.sendTelemetry(Serial);

@@ -1,8 +1,8 @@
-#ifndef ENCODER_H
-#define ENCODER_H
+#ifndef HARDWARE_ENCODER_H
+#define HARDWARE_ENCODER_H
 
 #include <Wire.h>
-#include "Config.h"
+#include "../Config.h"
 
 class Encoder {
 public:

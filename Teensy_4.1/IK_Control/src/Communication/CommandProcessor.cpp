@@ -1,8 +1,8 @@
 #include "CommandProcessor.h"
 #include "../Kinematics/Kinematics.h"
 
-CommandProcessor::CommandProcessor(MotionPlanner& planner, SafetyManager& safety, SequencePlayer& seq, TeachManager& teach, HomingManager& home)
-    : _planner(planner), _safety(safety), _seq(seq), _teach(teach), _home(home), _pos(0) {}
+CommandProcessor::CommandProcessor(MotionPlanner& planner, SafetyManager& safety, SequencePlayer& seq, TeachManager& teach, HomingManager& home, ServoController& s4, ServoController& s5, ServoController& grip, RobotConfig& config)
+    : _planner(planner), _safety(safety), _seq(seq), _teach(teach), _home(home), _s4(s4), _s5(s5), _grip(grip), _config(config), _pos(0) {}
 
 void CommandProcessor::processSerial(Stream& stream) {
     while (stream.available()) {
@@ -25,26 +25,33 @@ void CommandProcessor::processSerial(Stream& stream) {
 }
 
 void CommandProcessor::_handlePacket(String data) {
-    // Expected format: j1,j2,j3,j4,j5,dx,dy,duration,crc
     int lastComma = data.lastIndexOf(',');
     if (lastComma == -1) return;
 
-    // For now simple parsing (skipping CRC check for brevity, but could be added)
-    int idx[8];
+    String payload = data.substring(0, lastComma);
+    uint8_t receivedCRC = (uint8_t)data.substring(lastComma + 1).toInt();
+    uint8_t calculatedCRC = 0;
+    for (size_t i = 0; i < payload.length(); i++) calculatedCRC ^= (uint8_t)payload[i];
+
+    if (calculatedCRC != receivedCRC) {
+        Serial.println("ERR: CRC Mismatch");
+        return;
+    }
+
+    int idx[7];
     int start = 0;
-    for (int i = 0; i < 8; i++) {
-        idx[i] = data.indexOf(',', start);
-        if (idx[i] == -1 && i < 7) return;
+    for (int i = 0; i < 7; i++) {
+        idx[i] = payload.indexOf(',', start);
+        if (idx[i] == -1) return;
         start = idx[i] + 1;
     }
 
-    float j1 = data.substring(0, idx[0]).toFloat();
-    float j2 = data.substring(idx[0]+1, idx[1]).toFloat();
-    float j3 = data.substring(idx[1]+1, idx[2]).toFloat();
-    float j4 = data.substring(idx[2]+1, idx[3]).toFloat();
-    float j5 = data.substring(idx[3]+1, idx[4]).toFloat();
-    // dx, dy would go to gantry
-    unsigned long dur = data.substring(idx[6]+1, idx[7]).toInt();
+    float j1 = payload.substring(0, idx[0]).toFloat();
+    float j2 = payload.substring(idx[0]+1, idx[1]).toFloat();
+    float j3 = payload.substring(idx[1]+1, idx[2]).toFloat();
+    float j4 = payload.substring(idx[2]+1, idx[3]).toFloat();
+    float j5 = payload.substring(idx[3]+1, idx[4]).toFloat();
+    unsigned long dur = payload.substring(idx[6]+1).toInt();
 
     _planner.addWaypoint({{j1, j2, j3, j4, j5}, dur});
 }
@@ -104,20 +111,22 @@ void CommandProcessor::_handleCommand(String bufStr) {
     } else if (bufStr.startsWith("D1")) {
         float val = bufStr.substring(2).toFloat();
         Joints j = _planner.getCurrentJoints();
-        j.j1 += val;
-        _planner.addWaypoint({j, 500});
+        j.j1 += val; _planner.addWaypoint({j, 500});
     } else if (bufStr.startsWith("D2")) {
         float val = bufStr.substring(2).toFloat();
         Joints j = _planner.getCurrentJoints();
-        j.j2 += val;
-        _planner.addWaypoint({j, 500});
+        j.j2 += val; _planner.addWaypoint({j, 500});
     } else if (bufStr.startsWith("D3")) {
         float val = bufStr.substring(2).toFloat();
         Joints j = _planner.getCurrentJoints();
-        j.j3 += val;
-        _planner.addWaypoint({j, 500});
+        j.j3 += val; _planner.addWaypoint({j, 500});
     } else if (bufStr.startsWith("GRIP")) {
-        // Implement gripper control
+        if (bufStr.substring(5) == "OPEN") _grip.write(0);
+        else if (bufStr.substring(5) == "CLOSE") _grip.write(180);
+        else _grip.write(bufStr.substring(5).toFloat());
+    } else if (bufStr == "SAVECFG") {
+        ConfigurationManager::save(_config);
+        Serial.println("Config Saved");
     }
 }
 

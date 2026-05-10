@@ -2,7 +2,7 @@
 #define SEQUENCE_PLAYER_H
 
 #include <SD.h>
-#include "Motion/MotionPlanner.h"
+#include "MotionPlanner.h"
 
 class SequencePlayer {
 public:

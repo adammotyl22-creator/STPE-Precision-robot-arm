@@ -5,6 +5,7 @@
 #include "Hardware/MotorController.h"
 #include "Hardware/Encoder.h"
 #include "Motion/MotionPlanner.h"
+#include "ConfigurationManager.h"
 
 enum HomingState {
   HOMING_IDLE,
@@ -13,8 +14,6 @@ enum HomingState {
   HOMING_J3_FAST, HOMING_J3_BACKOFF, HOMING_J3_SLOW,
   HOMING_COMPLETE, HOMING_FAULT
 };
-
-#include "ConfigurationManager.h"
 
 class HomingManager {
 public:

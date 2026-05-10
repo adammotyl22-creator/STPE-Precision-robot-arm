@@ -2,7 +2,7 @@
 #define KINEMATICS_H
 
 #include <Arduino.h>
-#include "Config.h"
+#include "../Config.h"
 
 struct Joints {
     float j1, j2, j3, j4, j5;

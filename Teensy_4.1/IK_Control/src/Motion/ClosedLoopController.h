@@ -1,8 +1,8 @@
 #ifndef CLOSED_LOOP_CONTROLLER_H
 #define CLOSED_LOOP_CONTROLLER_H
 
-#include "Hardware/Encoder.h"
-#include "Hardware/MotorController.h"
+#include "../Hardware/Encoder.h"
+#include "../Hardware/MotorController.h"
 
 struct PIDGains {
     float kP, kI, kD, kFF, kG;
